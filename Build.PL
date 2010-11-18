@@ -6,7 +6,6 @@ use Module::Build;
 
 Module::Build->new(
 	module_name => "Time::OlsonTZ::Download",
-	dist_version => "0.000",
 	license => "perl",
 	configure_requires => {
 		"Module::Build" => 0,

@@ -1,5 +1,5 @@
 This file contains message digests of all files listed in MANIFEST,
-signed via the Module::Signature module, version 0.64.
+signed via the Module::Signature module, version 0.66.
 
 To verify the content in this distribution, first make sure you have
 Module::Signature installed, then type:
@@ -15,20 +15,20 @@ not run its Makefile.PL or Build.PL.
 Hash: SHA1
 
 SHA1 e4a58719c562bb65452eceff58798494cbba1b5f .cvsignore
-SHA1 4c6ade46800a7056f1c9f9ddc78eed91e217ce54 Build.PL
-SHA1 0183802e32ca28f7c7c9257ec1cd90de0baa0166 Changes
+SHA1 b33a7daeb38a68be77f9affc6be5cf878250b99d Build.PL
+SHA1 e15857d67a3a6c399af4fcaad8db987cf24bfd2e Changes
 SHA1 941a3b82ce8868202a8f1684d28eea13163258fb MANIFEST
-SHA1 0205f860778cc998b69e99c1708fea858f71bfbc META.yml
+SHA1 3b0be0f9892403cd3a563f5b4f68bdab3d006ae2 META.yml
 SHA1 caae608231ffe78390c76451ade51a7cfc87a9f9 Makefile.PL
 SHA1 c7a6b6d7bc0e6058f50c8e2fb8af75ac9b90f381 README
-SHA1 3b1d23fb29369bdf399ef2fccba3cd32a30c90bb lib/Time/OlsonTZ/Download.pm
+SHA1 def96b2a168ed169af898b9f5aaae7d8f23e9b6f lib/Time/OlsonTZ/Download.pm
 SHA1 904d9a4f76525e2303e4b0c168c68230f223c8de t/pod_cvg.t
 SHA1 65c75abdef6f01a5d1588a307f2ddfe2333dc961 t/pod_syn.t
 SHA1 90514f5e59b12f6e8a08da605da827900cff24ea t/use.t
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.9 (GNU/Linux)
 
-iEYEARECAAYFAkx9BysACgkQOV9mt2VyAVGAcACcCK7mGnHAtE5UsoLNfTa3lBlB
-A1oAn2OghzYaBYZhFL34/bRKTbDrL+zk
-=CaVF
+iEYEARECAAYFAkzliO8ACgkQOV9mt2VyAVE6rQCfYVPSJJJKAeGv4zbtfVoPomep
+zsEAn1cuROuRAnk7nrqvLJCcAoZ5fhMK
+=Ki2m
 -----END PGP SIGNATURE-----

@@ -24,7 +24,7 @@ name: Time-OlsonTZ-Download
 provides:
   Time::OlsonTZ::Download:
     file: lib/Time/OlsonTZ/Download.pm
-    version: 0.000
+    version: 0.001
 requires:
   Carp: 0
   File::Path: 2.07
@@ -42,4 +42,4 @@ requires:
   warnings: 0
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.000
+version: 0.001

@@ -52,7 +52,7 @@ use Net::FTP 1.21 ();
 use Params::Classify 0.000 qw(is_undef is_string);
 use String::ShellQuote 1.01 qw(shell_quote);
 
-our $VERSION = "0.000";
+our $VERSION = "0.001";
 
 sub _elsie_ftp() {
 	my $ftp = Net::FTP->new("elsie.nci.nih.gov")
@@ -66,22 +66,31 @@ sub _elsie_ftp() {
 	return $ftp;
 }
 
-sub _latest_version($) {
+sub _all_versions($) {
 	my($ftp) = @_;
 	my $filenames = $ftp->ls
 		or die "FTP error: ".$ftp->message;
-	my %version;
+	my(%cversions, %dversions);
 	foreach(@$filenames) {
 		if(/\Atzcode([0-9]{4}[a-z])\.tar\.gz\z/) {
-			($version{$1} ||= 0) |= 1;
-		} elsif(/\Atzdata([0-9]{4}[a-z])\.tar\.gz\z/) {
-			($version{$1} ||= 0) |= 2;
+			$cversions{$1} = undef;
+		}
+		if(/\Atzdata([0-9]{4}[a-z])\.tar\.gz\z/) {
+			$dversions{$1} = undef;
 		}
 	}
-	foreach(sort { $b cmp $a } keys %version) {
-		return $_ if $version{$_} == 3;
+	die "no timezone database found on server\n"
+		unless scalar(keys(%cversions)) && scalar(keys(%dversions));
+	return (\%cversions, \%dversions);
+}
+
+sub _latest_version($) {
+	my($dversions) = @_;
+	my $latest = "";
+	foreach(keys %$dversions) {
+		$latest = $_ if $_ gt $latest;
 	}
-	die "no timezone database found on server\n";
+	return $latest;
 }
 
 sub _icu_download($$) {
@@ -121,7 +130,8 @@ sub latest_version {
 	my($class) = @_;
 	croak "@{[__PACKAGE__]}->latest_version not called as a class method"
 		unless is_string($class);
-	return _latest_version(_elsie_ftp());
+	my(undef, $dversions) = _all_versions(_elsie_ftp());
+	return _latest_version($dversions);
 }
 
 =back
@@ -160,22 +170,31 @@ sub new {
 			(is_string($version) &&
 				$version =~ /\A[0-9]{4}[a-z]\z/);
 	my $ftp = _elsie_ftp();
-	my $latest_version = _latest_version($ftp);
+	my($cversions, $dversions) = _all_versions($ftp);
+	my $latest_version = _latest_version($dversions);
 	$version ||= $latest_version;
 	$version le $latest_version
 		or die "Olson DB version $version doesn't exist yet\n";
-	$ftp = undef if $version ne $latest_version;
 	my $self = bless({}, $class);
 	$self->{version} = $version;
 	$self->{dir} = tempdir();
-	foreach my $part (qw(tzcode tzdata)) {
-		my $remname = "$part$version.tar.gz";
-		my $locname = $self->dir."/$part.tar.gz";
-		if($version eq $latest_version) {
-			$ftp->get($remname, $locname)
-				or die "FTP error on $part$version.tar.gz: ".
-					$ftp->message;
-		} else {
+	if(exists $dversions->{$version}) {
+		my @cversions = sort { $b cmp $a } grep { $_ le $version }
+			keys %$cversions;
+		die "no matching code available for data version $version\n"
+			unless @cversions;
+		my $cversion = $cversions[0];
+		$ftp->get("tzcode$cversion.tar.gz", $self->dir."/tzcode.tar.gz")
+			or die "FTP error on tzcode$cversion.tar.gz: ".
+				$ftp->message;
+		$ftp->get("tzdata$version.tar.gz", $self->dir."/tzdata.tar.gz")
+			or die "FTP error on tzdata$version.tar.gz: ".
+				$ftp->message;
+	} else {
+		$ftp = undef;
+		foreach my $part (qw(tzcode tzdata)) {
+			my $remname = "$part$version.tar.gz";
+			my $locname = $self->dir."/$part.tar.gz";
 			_icu_download($remname, $locname);
 		}
 	}
