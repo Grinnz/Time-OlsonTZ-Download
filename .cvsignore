@@ -1,4 +1,4 @@
 Build Makefile
 _build blib
-META.yml MYMETA.yml Makefile.PL SIGNATURE
+META.json META.yml MYMETA.json MYMETA.yml Makefile.PL SIGNATURE
 Time-OlsonTZ-Download-*

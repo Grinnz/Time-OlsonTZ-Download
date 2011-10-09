@@ -24,7 +24,6 @@ Module::Build->new(
 		"Carp" => 0,
 		"File::Path" => "2.07",
 		"File::Temp" => "0.22",
-		"HTTP::Lite" => "2.2",
 		"IO::Dir" => "1.03",
 		"IO::File" => "1.03",
 		"IPC::Filter" => "0.002",

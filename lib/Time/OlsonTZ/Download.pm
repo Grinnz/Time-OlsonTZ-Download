@@ -11,6 +11,8 @@ Time::OlsonTZ::Download - Olson timezone database from source
 	$download = Time::OlsonTZ::Download->new;
 
 	$version = $download->version;
+	$version = $download->code_version;
+	$version = $download->data_version;
 	$dir = $download->dir;
 	$dir = $download->unpacked_dir;
 
@@ -44,7 +46,6 @@ use strict;
 use Carp qw(croak);
 use File::Path 2.07 qw(rmtree);
 use File::Temp 0.22 qw(tempdir);
-use HTTP::Lite 2.2 ();
 use IO::Dir 1.03 ();
 use IO::File 1.03 ();
 use IPC::Filter 0.002 qw(filter);
@@ -52,66 +53,100 @@ use Net::FTP 1.21 ();
 use Params::Classify 0.000 qw(is_undef is_string);
 use String::ShellQuote 1.01 qw(shell_quote);
 
-our $VERSION = "0.001";
+our $VERSION = "0.002";
 
-sub _elsie_ftp() {
-	my $ftp = Net::FTP->new("elsie.nci.nih.gov")
-		or die "FTP error: $@\n";
-	$ftp->login("anonymous","-anonymous\@")
-		or die "FTP error: ".$ftp->message;
-	$ftp->binary
-		or die "FTP error: ".$ftp->message;
-	$ftp->cwd("pub")
-		or die "FTP error: ".$ftp->message;
-	return $ftp;
+sub _init_ftp($$) {
+	my($self, $hostname) = @_;
+	$self->{ftp_hostname} = $hostname;
+	$self->{ftp} = Net::FTP->new($hostname)
+		or die "FTP error on $hostname: $@\n";
+}
+
+sub _ftp_op($$@) {
+	my($self, $method, @args) = @_;
+	$self->{ftp}->$method(@args)
+		or die "FTP error on @{[$self->{ftp_hostname}]}: ".
+			$self->{ftp}->message;
+}
+
+sub _ftp_login($$$) {
+	my($self, $hostname, $dirarray) = @_;
+	_init_ftp($self, $hostname);
+	_ftp_op($self, "login", "anonymous","-anonymous\@");
+	_ftp_op($self, "binary");
+	_ftp_op($self, "cwd", $_) foreach @$dirarray;
+}
+
+sub _ensure_ftp($) {
+	my($self) = @_;
+	unless($self->{ftp}) {
+		# Always uses master site <ftp://munnari.oz.au/pub/>.
+		# Known FTP mirrors that could be used instead:
+		#     <ftp://tzmirror.appealingapps.de/>
+		# A mirror listing can be found at
+		# <https://github.com/canbuffi/tzmirror/wiki>
+		_ftp_login($self, "munnari.oz.au", ["pub"]);
+	}
+}
+
+sub _ftp_versions_in_dir($$) {
+	my($self, $subdir) = @_;
+	_ensure_ftp($self);
+	my $filenames = _ftp_op($self, "ls", defined($subdir) ? ($subdir) : ());
+	my(%cversions, %dversions);
+	foreach(@$filenames) {
+		if(m#(?:\A|/)tzcode([0-9]{2}(?:[0-9]{2})?[a-z])
+				\.tar\.(?:gz|Z)\z#x) {
+			$cversions{$1} = $_;
+		}
+		if(m#(?:\A|/)tzdata([0-9]{2}(?:[0-9]{2})?[a-z])
+				\.tar\.(?:gz|Z)\z#x) {
+			$dversions{$1} = $_;
+		}
+	}
+	return { code => \%cversions, data => \%dversions };
+}
+
+sub _all_current_versions($) {
+	my($self) = @_;
+	return $self->{current_versions} ||= _ftp_versions_in_dir($self, undef);
+}
+
+sub _all_old_versions($) {
+	my($self) = @_;
+	return $self->{old_versions} ||= _ftp_versions_in_dir($self, "oldtz");
 }
 
 sub _all_versions($) {
-	my($ftp) = @_;
-	my $filenames = $ftp->ls
-		or die "FTP error: ".$ftp->message;
-	my(%cversions, %dversions);
-	foreach(@$filenames) {
-		if(/\Atzcode([0-9]{4}[a-z])\.tar\.gz\z/) {
-			$cversions{$1} = undef;
-		}
-		if(/\Atzdata([0-9]{4}[a-z])\.tar\.gz\z/) {
-			$dversions{$1} = undef;
-		}
-	}
-	die "no timezone database found on server\n"
-		unless scalar(keys(%cversions)) && scalar(keys(%dversions));
-	return (\%cversions, \%dversions);
+	my($self) = @_;
+	return $self->{all_versions} ||= do {
+		my $curv = _all_current_versions($self);
+		my $oldv = _all_old_versions($self);
+		+{ map { $_ => { %{$curv->{$_}}, %{$oldv->{$_}} } }
+			qw(code data) };
+	};
+}
+
+sub _cmp_version($$) {
+	my($a, $b) = @_;
+	$a = "19".$a if $a =~ /\A[0-9][0-9][a-z]\z/;
+	$b = "19".$b if $b =~ /\A[0-9][0-9][a-z]\z/;
+	return $a cmp $b;
 }
 
 sub _latest_version($) {
-	my($dversions) = @_;
-	my $latest = "";
-	foreach(keys %$dversions) {
-		$latest = $_ if $_ gt $latest;
+	my($self) = @_;
+	my $latest;
+	my $curv = _all_current_versions($self);
+	foreach(keys %{$curv->{data}}) {
+		$latest = $_
+			if !defined($latest) || _cmp_version($_, $latest) > 0;
+	}
+	unless(defined $latest) {
+		die "no current timezone database found on ".
+			"@{[$self->{ftp_hostname}]}\n";
 	}
 	return $latest;
-}
-
-sub _icu_download($$) {
-	my($remname, $locname) = @_;
-	my $locfh = IO::File->new($locname, "w")
-		or die "file $locname unwritable: $!\n";
-	my $http = HTTP::Lite->new;
-	$http->http11_mode(1);
-	my $res = $http->request("http://source.icu-project.org/repos/icu".
-			"/data/trunk/tzdata/mirror/$remname", sub {
-		local $\ = undef;
-		$locfh->print(${$_[1]}) or die "file $locname unwritable: $!\n";
-		return undef;
-	});
-	$locfh->flush or die "file $locname unwritable: $!\n";
-	defined $res or die "HTTP I/O error on $remname\n";
-	unless($res == 200) {
-		my $msg = $http->status_message;
-		$msg =~ s/[\r\n]//g;
-		die "HTTP $res $msg on $remname\n";
-	}
 }
 
 =head1 CLASS METHODS
@@ -130,8 +165,7 @@ sub latest_version {
 	my($class) = @_;
 	croak "@{[__PACKAGE__]}->latest_version not called as a class method"
 		unless is_string($class);
-	my(undef, $dversions) = _all_versions(_elsie_ftp());
-	return _latest_version($dversions);
+	return _latest_version({});
 }
 
 =back
@@ -158,8 +192,8 @@ the database is to be downloaded.  If not supplied, the latest available
 version will be downloaded.  Version numbers for the Olson database
 currently consist of a year number and a lowercase letter, such as
 "C<2010k>".  Availability of versions other than the latest is limited:
-there appears to be no official archive, so this module is at the mercy
-of mirror administrators' whims.
+until 2011 there was no official archive, so this module is at the mercy
+of historical mirror administrators' whims.
 
 =cut
 
@@ -168,36 +202,35 @@ sub new {
 	die "malformed Olson version number `$version'\n"
 		unless is_undef($version) ||
 			(is_string($version) &&
-				$version =~ /\A[0-9]{4}[a-z]\z/);
-	my $ftp = _elsie_ftp();
-	my($cversions, $dversions) = _all_versions($ftp);
-	my $latest_version = _latest_version($dversions);
-	$version ||= $latest_version;
-	$version le $latest_version
-		or die "Olson DB version $version doesn't exist yet\n";
+				$version =~ /\A[0-9]{2}(?:[0-9]{2})?[a-z]\z/);
 	my $self = bless({}, $class);
+	my $latest_version = $self->_latest_version;
+	$version ||= $latest_version;
+	_cmp_version($version, $latest_version) <= 0
+		or die "Olson DB version $version doesn't exist yet\n";
 	$self->{version} = $version;
 	$self->{dir} = tempdir();
-	if(exists $dversions->{$version}) {
-		my @cversions = sort { $b cmp $a } grep { $_ le $version }
-			keys %$cversions;
-		die "no matching code available for data version $version\n"
-			unless @cversions;
-		my $cversion = $cversions[0];
-		$ftp->get("tzcode$cversion.tar.gz", $self->dir."/tzcode.tar.gz")
-			or die "FTP error on tzcode$cversion.tar.gz: ".
-				$ftp->message;
-		$ftp->get("tzdata$version.tar.gz", $self->dir."/tzdata.tar.gz")
-			or die "FTP error on tzdata$version.tar.gz: ".
-				$ftp->message;
-	} else {
-		$ftp = undef;
-		foreach my $part (qw(tzcode tzdata)) {
-			my $remname = "$part$version.tar.gz";
-			my $locname = $self->dir."/$part.tar.gz";
-			_icu_download($remname, $locname);
+	my $vers = $self->_all_current_versions;
+	unless(exists $vers->{data}->{$version}) {
+		$vers = $self->_all_versions;
+		unless(exists $vers->{data}->{$version}) {
+			die "Olson DB version $version not available on ".
+				"@{[$self->{ftp_hostname}]}\n";
 		}
 	}
+	my @cversions = sort { _cmp_version($b, $a) }
+		grep { _cmp_version($_, $version) <= 0 } keys %{$vers->{code}};
+	die "no matching code available for data version $version\n"
+		unless @cversions;
+	my $cversion = $cversions[0];
+	$self->{code_version} = $cversion;
+	$self->{data_version} = $version;
+	$self->_ftp_op("get", $vers->{code}->{$cversion},
+		$self->dir."/tzcode.tar.gz");
+	$self->_ftp_op("get", $vers->{data}->{$version},
+		$self->dir."/tzdata.tar.gz");
+	delete $self->{ftp};
+	delete $self->{ftp_hostname};
 	$self->{downloaded} = 1;
 	return $self;
 }
@@ -215,6 +248,17 @@ sub new {
 Returns the version number of the database of which a copy is represented
 by this object.
 
+The database consists of code and data parts which are updated
+semi-independently.  The latest version of the database as a whole
+consists of the latest version of the code and the latest version of
+the data.  If both parts are updated at once then they will both get the
+same version number, and that will be the version number of the database
+as a whole.  However, in general they may be updated at different times,
+and a single version of the database may be made up of code and data
+parts that have different version numbers.  The version number of the
+database as a whole will then be the version number of the most recently
+updated part.
+
 =cut
 
 sub version {
@@ -222,6 +266,34 @@ sub version {
 	die "Olson database version not determined\n"
 		unless exists $self->{version};
 	return $self->{version};
+}
+
+=item $download->code_version
+
+Returns the version number of the code part of the database of which a
+copy is represented by this object.
+
+=cut
+
+sub code_version {
+	my($self) = @_;
+	die "Olson database code version not determined\n"
+		unless exists $self->{code_version};
+	return $self->{code_version};
+}
+
+=item $download->data_version
+
+Returns the version number of the data part of the database of which a
+copy is represented by this object.
+
+=cut
+
+sub data_version {
+	my($self) = @_;
+	die "Olson database data version not determined\n"
+		unless exists $self->{data_version};
+	return $self->{data_version};
 }
 
 =item $download->dir
@@ -734,7 +806,7 @@ Andrew Main (Zefram) <zefram@fysh.org>
 
 =head1 COPYRIGHT
 
-Copyright (C) 2010 Andrew Main (Zefram) <zefram@fysh.org>
+Copyright (C) 2010, 2011 Andrew Main (Zefram) <zefram@fysh.org>
 
 =head1 LICENSE
 

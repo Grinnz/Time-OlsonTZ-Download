@@ -13,9 +13,8 @@ configure_requires:
   perl: 5.006
   strict: 0
   warnings: 0
-distribution_type: module
 dynamic_config: 0
-generated_by: 'Module::Build version 0.3607'
+generated_by: 'Module::Build version 0.38, CPAN::Meta::Converter version 2.112621'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -24,12 +23,11 @@ name: Time-OlsonTZ-Download
 provides:
   Time::OlsonTZ::Download:
     file: lib/Time/OlsonTZ/Download.pm
-    version: 0.001
+    version: 0.002
 requires:
   Carp: 0
   File::Path: 2.07
   File::Temp: 0.22
-  HTTP::Lite: 2.2
   IO::Dir: 1.03
   IO::File: 1.03
   IPC::Filter: 0.002
@@ -42,4 +40,4 @@ requires:
   warnings: 0
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.001
+version: 0.002
