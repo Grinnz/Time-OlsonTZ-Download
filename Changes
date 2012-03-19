@@ -1,3 +1,10 @@
+version 0.003; 2012-03-19
+
+  * new constructor ->new_from_local_source to support working with
+    locally-modified Olson source
+
+  * convert .cvsignore to .gitignore
+
 version 0.002; 2011-10-09
 
   * with elsie down due to legal action, use instead the new de facto

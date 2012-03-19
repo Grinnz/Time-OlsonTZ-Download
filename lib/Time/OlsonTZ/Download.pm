@@ -53,7 +53,7 @@ use Net::FTP 1.21 ();
 use Params::Classify 0.000 qw(is_undef is_string);
 use String::ShellQuote 1.01 qw(shell_quote);
 
-our $VERSION = "0.002";
+our $VERSION = "0.003";
 
 sub _init_ftp($$) {
 	my($self, $hostname) = @_;
@@ -175,10 +175,10 @@ sub latest_version {
 sub DESTROY {
 	my($self) = @_;
 	local($., $@, $!, $^E, $?);
-	rmtree($self->{dir}, 0, 0) if exists $self->{dir};
+	rmtree($self->{cleanup_dir}, 0, 0) if exists $self->{cleanup_dir};
 }
 
-=head1 CONSTRUCTOR
+=head1 CONSTRUCTORS
 
 =over
 
@@ -209,7 +209,7 @@ sub new {
 	_cmp_version($version, $latest_version) <= 0
 		or die "Olson DB version $version doesn't exist yet\n";
 	$self->{version} = $version;
-	$self->{dir} = tempdir();
+	$self->{dir} = $self->{cleanup_dir} = tempdir();
 	my $vers = $self->_all_current_versions;
 	unless(exists $vers->{data}->{$version}) {
 		$vers = $self->_all_versions;
@@ -232,6 +232,77 @@ sub new {
 	delete $self->{ftp};
 	delete $self->{ftp_hostname};
 	$self->{downloaded} = 1;
+	return $self;
+}
+
+=item Time::OlsonTZ::Download->new_from_local_source(ATTR => VALUE)
+
+Acquires Olson database source locally, without downloading, and returns
+an object representing a copy of it ready to use like a download.
+This can be used to work with locally-modified versions of the database.
+The following attributes may be given:
+
+=over
+
+=item B<source_dir>
+
+Local directory containing Olson source files.  Must be supplied.
+The entire directory will be copied into a temporary location to be
+worked on.
+
+=item B<version>
+
+Olson version number to attribute to the source files.  Must be supplied.
+
+=item B<code_version>
+
+=item B<data_version>
+
+Olson version number to attribute to the code and data parts of the
+source files.  Both default to the main version number.
+
+=back
+
+=cut
+
+sub new_from_local_source {
+	my $class = shift;
+	my $self = bless({}, $class);
+	my $srcdir;
+	while(@_) {
+		my $attr = shift;
+		my $value = shift;
+		if($attr eq "source_dir") {
+			croak "source directory specified redundantly"
+				if defined $srcdir;
+			croak "source directory must be a string"
+				unless is_string($value);
+			$srcdir = $value;
+		} elsif($attr =~ /\A(?:(?:code|data)_)?version\z/) {
+			croak "$attr specified redundantly"
+				if exists $self->{$attr};
+			die "malformed Olson version number `$value'\n"
+				unless is_string($value) &&
+					$value =~ /\A
+						[0-9]{2}(?:[0-9]{2})?[a-z]
+					\z/x;
+			$self->{$attr} = $value;
+		} else {
+			croak "unrecognised attribute `$attr'";
+		}
+	}
+	croak "source directory not specified" unless defined $srcdir;
+	croak "version number not specified" unless exists $self->{version};
+	foreach(qw(code_version data_version)) {
+		$self->{$_} = $self->{version} unless exists $self->{$_};
+	}
+	my $tdir = tempdir();
+	$self->{cleanup_dir} = $tdir;
+	$self->{dir} = "$tdir/c";
+	filter("", "cp -pr @{[shell_quote($srcdir)]} ".
+			"@{[shell_quote($self->{dir})]}");
+	$self->{downloaded} = 1;
+	$self->{unpacked} = 1;
 	return $self;
 }
 
@@ -806,7 +877,7 @@ Andrew Main (Zefram) <zefram@fysh.org>
 
 =head1 COPYRIGHT
 
-Copyright (C) 2010, 2011 Andrew Main (Zefram) <zefram@fysh.org>
+Copyright (C) 2010, 2011, 2012 Andrew Main (Zefram) <zefram@fysh.org>
 
 =head1 LICENSE
 
