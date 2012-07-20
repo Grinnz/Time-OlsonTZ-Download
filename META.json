@@ -4,7 +4,7 @@
       "Andrew Main (Zefram) <zefram@fysh.org>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Module::Build version 0.4, CPAN::Meta::Converter version 2.112621",
+   "generated_by" : "Module::Build version 0.4001, CPAN::Meta::Converter version 2.120921",
    "license" : [
       "perl_5"
    ],
@@ -16,43 +16,43 @@
    "prereqs" : {
       "build" : {
          "requires" : {
-            "Module::Build" : 0,
-            "Test::More" : 0,
+            "Module::Build" : "0",
+            "Test::More" : "0",
             "perl" : "5.006",
-            "strict" : 0,
-            "warnings" : 0
+            "strict" : "0",
+            "warnings" : "0"
          }
       },
       "configure" : {
          "requires" : {
-            "Module::Build" : 0,
+            "Module::Build" : "0",
             "perl" : "5.006",
-            "strict" : 0,
-            "warnings" : 0
+            "strict" : "0",
+            "warnings" : "0"
          }
       },
       "runtime" : {
          "requires" : {
-            "Carp" : 0,
+            "Carp" : "0",
             "File::Path" : "2.07",
             "File::Temp" : "0.22",
             "IO::Dir" : "1.03",
             "IO::File" : "1.03",
             "IPC::Filter" : "0.002",
             "Net::FTP" : "1.21",
-            "Params::Classify" : 0,
+            "Params::Classify" : "0",
             "String::ShellQuote" : "1.01",
-            "parent" : 0,
+            "parent" : "0",
             "perl" : "5.006",
-            "strict" : 0,
-            "warnings" : 0
+            "strict" : "0",
+            "warnings" : "0"
          }
       }
    },
    "provides" : {
       "Time::OlsonTZ::Download" : {
          "file" : "lib/Time/OlsonTZ/Download.pm",
-         "version" : "0.003"
+         "version" : "0.004"
       }
    },
    "release_status" : "stable",
@@ -61,5 +61,5 @@
          "http://dev.perl.org/licenses/"
       ]
    },
-   "version" : "0.003"
+   "version" : "0.004"
 }

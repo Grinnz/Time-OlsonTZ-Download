@@ -53,7 +53,7 @@ use Net::FTP 1.21 ();
 use Params::Classify 0.000 qw(is_undef is_string);
 use String::ShellQuote 1.01 qw(shell_quote);
 
-our $VERSION = "0.003";
+our $VERSION = "0.004";
 
 sub _init_ftp($$) {
 	my($self, $hostname) = @_;
@@ -80,12 +80,9 @@ sub _ftp_login($$$) {
 sub _ensure_ftp($) {
 	my($self) = @_;
 	unless($self->{ftp}) {
-		# Always uses master site <ftp://munnari.oz.au/pub/>.
-		# Known FTP mirrors that could be used instead:
-		#     <ftp://tzmirror.appealingapps.de/>
-		# A mirror listing can be found at
-		# <https://github.com/canbuffi/tzmirror/wiki>
-		_ftp_login($self, "munnari.oz.au", ["pub"]);
+		# Always use IANA master.  Could possibly look at mirrors,
+		# but the IANA site is probably reliable enough.
+		_ftp_login($self, "ftp.iana.org", ["tz", "releases"]);
 	}
 }
 
@@ -107,24 +104,9 @@ sub _ftp_versions_in_dir($$) {
 	return { code => \%cversions, data => \%dversions };
 }
 
-sub _all_current_versions($) {
-	my($self) = @_;
-	return $self->{current_versions} ||= _ftp_versions_in_dir($self, undef);
-}
-
-sub _all_old_versions($) {
-	my($self) = @_;
-	return $self->{old_versions} ||= _ftp_versions_in_dir($self, "oldtz");
-}
-
 sub _all_versions($) {
 	my($self) = @_;
-	return $self->{all_versions} ||= do {
-		my $curv = _all_current_versions($self);
-		my $oldv = _all_old_versions($self);
-		+{ map { $_ => { %{$curv->{$_}}, %{$oldv->{$_}} } }
-			qw(code data) };
-	};
+	return $self->{all_versions} ||= _ftp_versions_in_dir($self, undef);
 }
 
 sub _cmp_version($$) {
@@ -137,7 +119,7 @@ sub _cmp_version($$) {
 sub _latest_version($) {
 	my($self) = @_;
 	my $latest;
-	my $curv = _all_current_versions($self);
+	my $curv = _all_versions($self);
 	foreach(keys %{$curv->{data}}) {
 		$latest = $_
 			if !defined($latest) || _cmp_version($_, $latest) > 0;
@@ -210,7 +192,7 @@ sub new {
 		or die "Olson DB version $version doesn't exist yet\n";
 	$self->{version} = $version;
 	$self->{dir} = $self->{cleanup_dir} = tempdir();
-	my $vers = $self->_all_current_versions;
+	my $vers = $self->_all_versions;
 	unless(exists $vers->{data}->{$version}) {
 		$vers = $self->_all_versions;
 		unless(exists $vers->{data}->{$version}) {

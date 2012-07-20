@@ -1,3 +1,7 @@
+version 0.004; 2012-07-20
+
+  * switch to new official repository, <ftp://ftp.iana.org/tz/releases/>
+
 version 0.003; 2012-03-19
 
   * new constructor ->new_from_local_source to support working with
