@@ -4,9 +4,9 @@ Changes
 MANIFEST
 META.json
 META.yml
-Makefile.PL
 README
 lib/Time/OlsonTZ/Download.pm
+t/latest.at
 t/pod_cvg.t
 t/pod_syn.t
 t/use.t

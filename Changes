@@ -1,3 +1,109 @@
+version 0.009; 2018-01-31
+
+  * split the ->data_files method into separate ->source_data_files and
+    ->zic_input_files to cover the two data file roles of human editing
+    and machine parsing, with the ->data_files method itself deprecated
+    and only yielding a result when it serves both roles simultaneously
+
+  * when extracting source data file names from the Olson makefile,
+    handle changes in the makefile rules expected to be seen from version
+    2018d onwards
+
+  * munge internal uuencoded data to avoid older versions of Pod modules
+    interpreting it as Pod markup
+
+  * slightly refactor a regexp used for extracting source data file names
+
+version 0.008; 2018-01-19
+
+  * bugfix: in the ->new_from_local_source constructor, don't get confused
+    by a source directory whose supplied name begins with "-"
+
+  * when extracting data file names from the Olson makefile, handle
+    changes in the makefile rules from version 2018b onwards
+
+  * when downloading database version 2016g or later, use the new
+    tzdb.tar.lz rather than tz{code,data}.tar.gz
+
+  * don't put downloaded tarballs in the same directory as the unpacked
+    Olson source
+
+  * when downloading database version 2016g or later, check PGP signatures
+    on downloaded files
+
+  * when downloading database version 2016g or later, check that the
+    downloaded file is the version we think we're downloading, by looking
+    at the "version" file in the tarball
+
+  * when downloading database versions prior to 2016g, check the SHA-512
+    hash of the downloaded files against known hashes, except for a
+    handful of files for which no hash is currently known
+
+  * correctly handle the desynchronised version numbers for code and
+    data parts of the database that occurred from 1993 to 2012
+
+  * handle the special-case filename for version 2006b of the code part
+    of the database
+
+  * when downloading a specified version of the database, request the
+    correct files directly, rather than listing the whole directory
+
+  * when determining the latest version of the database, request listing
+    of only recent database distributions, rather than listing the
+    whole directory
+
+  * fix the style of an error message
+
+  * take full advantage of GNU tar and GNU make facilities, having
+    started to rely on GNU tar to handle tzdb.tar.lz
+
+  * restructure calls to external commands to avoid the need for shell
+    quoting
+
+version 0.007; 2017-10-23
+
+  * when extracting data file names from the Olson makefile, handle the
+    new way in which the data file names are handled there from version
+    2017c onwards
+
+  * check for required Perl version at runtime
+
+  * in documentation, use four-column indentation for all verbatim
+    material
+
+  * in META.{yml,json}, point to public bug tracker
+
+  * support author test through Build interface
+
+version 0.006; 2017-07-17
+
+  * when invoking make in the Olson distribution directory, suppress
+    rebuilding of the version file, to cope with copies of the
+    distribution in which timestamps have been mangled, or which are git
+    working directories for projects other than the Olson database, or
+    from which some version-contributing files (such as the copyrighted
+    ones) have been omitted
+
+version 0.005; 2017-07-16
+
+  * bugfix: require bugfixed version of Net::FTP
+
+  * accept non-ASCII UTF-8 strings in iso3166.tab, seen from tzdata
+    version 2015e onwards, consequently increasing the Perl version
+    requirement to 5.8
+
+  * avoid unescaped brace in regexp, which is deprecated starting in
+    Perl 5.21.1
+
+  * in documentation, indicate that the ->new_from_local_source
+    constructor accepts multiple attribute parameters
+
+  * new author test to try out the module's actual functionality (not
+    automatically run due to dependence on network and on the content
+    of the latest Olson distribution)
+
+  * no longer include a Makefile.PL in the distribution
+
 version 0.004; 2012-07-20
 
   * switch to new official repository, <ftp://ftp.iana.org/tz/releases/>
